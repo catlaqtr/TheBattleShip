@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://thebattleship.onrender.com/$1"
+      "destination": "https://thebattleship.onrender.com/api/$1"
     }
   ]
 }
