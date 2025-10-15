@@ -1,6 +1,6 @@
 # Battleship Backend Deployment (Render + Docker)
 
-This repo is ready to deploy to Render as a Docker Web Service and to connect to a MySQL instance on Aiven. Frontend can be deployed to Vercel.
+This repo is ready to deploy to Render as a Docker Web Service and to connect to a MySQL instance on Aiven (or any MySQL-compatible provider). Frontend can be deployed to Vercel.
 
 ## What’s included
 - Dockerfile (multi-stage build: Maven -> lightweight JRE)
@@ -12,12 +12,14 @@ This repo is ready to deploy to Render as a Docker Web Service and to connect to
 Set these on Render:
 - APP_JWT_SECRET: strong random string (or Base64). Example: `openssl rand -base64 48`
 - APP_JWT_EXPIRATION_MS: optional, default `86400000` (1 day)
-- DB_URL: JDBC URL from Aiven (MySQL). Example:
+- SPRING_DATASOURCE_URL: JDBC URL from your MySQL provider. Examples:
   - `jdbc:mysql://<HOST>:<PORT>/<DBNAME>?sslMode=REQUIRED&allowPublicKeyRetrieval=true&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8`
-  - Prefer the JDBC URL provided by Aiven’s console. If Aiven requires a CA cert, either use their public CA or provide a Java truststore.
-- DB_USERNAME: Aiven DB user
-- DB_PASSWORD: Aiven DB password
+  - Prefer the JDBC URL provided by your provider’s console. If a CA cert is required, ensure it’s trusted by the JRE.
+- SPRING_DATASOURCE_USERNAME: DB user
+- SPRING_DATASOURCE_PASSWORD: DB password
 - CORS_ALLOWED_ORIGINS: your Vercel URL, e.g. `https://your-frontend.vercel.app`
+
+Important: This backend is configured for MySQL (dependencies: `mysql-connector-j`, `flyway-mysql`). If you use Postgres (e.g., Render’s managed Postgres), it will not work without code and migration changes. Use a MySQL provider (Aiven, PlanetScale, AWS RDS MySQL, etc.).
 
 ## Deploy on Render (Blueprint)
 1. Push this repo to GitHub.
@@ -51,7 +53,7 @@ docker build -t battleship:local .
 docker build -t battleship:local .
 ```
 
-Run with H2 (no DB envs) — good for a quick smoke test:
+Run with H2 (no DB envs) — quick smoke test only. Note: When no datasource is provided, the app will try to start, but most endpoints require a DB. Prefer testing with a real MySQL URL.
 
 - Linux/macOS:
 ```bash
@@ -65,23 +67,23 @@ set PORT=8080
 docker run --rm -p 8080:8080 -e PORT=%PORT% battleship:local
 ```
 
-Run against Aiven MySQL:
+Run against MySQL:
 
 - Linux/macOS:
 ```bash
 export PORT=8080
 export APP_JWT_SECRET=change-me
-export DB_URL="jdbc:mysql://HOST:PORT/DB?sslMode=REQUIRED&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-export DB_USERNAME=youruser
-export DB_PASSWORD=yourpass
+export SPRING_DATASOURCE_URL="jdbc:mysql://HOST:PORT/DB?sslMode=REQUIRED&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+export SPRING_DATASOURCE_USERNAME=youruser
+export SPRING_DATASOURCE_PASSWORD=yourpass
 export CORS_ALLOWED_ORIGINS=https://your-frontend.vercel.app
 
 docker run --rm -p $PORT:$PORT \
   -e PORT=$PORT \
   -e APP_JWT_SECRET="$APP_JWT_SECRET" \
-  -e DB_URL="$DB_URL" \
-  -e DB_USERNAME="$DB_USERNAME" \
-  -e DB_PASSWORD="$DB_PASSWORD" \
+  -e SPRING_DATASOURCE_URL="$SPRING_DATASOURCE_URL" \
+  -e SPRING_DATASOURCE_USERNAME="$SPRING_DATASOURCE_USERNAME" \
+  -e SPRING_DATASOURCE_PASSWORD="$SPRING_DATASOURCE_PASSWORD" \
   -e CORS_ALLOWED_ORIGINS="$CORS_ALLOWED_ORIGINS" \
   battleship:local
 ```
@@ -90,17 +92,17 @@ docker run --rm -p $PORT:$PORT \
 ```bat
 set PORT=8080
 set APP_JWT_SECRET=change-me
-set DB_URL=jdbc:mysql://HOST:PORT/DB?sslMode=REQUIRED&allowPublicKeyRetrieval=true&serverTimezone=UTC
-set DB_USERNAME=youruser
-set DB_PASSWORD=yourpass
+set SPRING_DATASOURCE_URL=jdbc:mysql://HOST:PORT/DB?sslMode=REQUIRED&allowPublicKeyRetrieval=true&serverTimezone=UTC
+set SPRING_DATASOURCE_USERNAME=youruser
+set SPRING_DATASOURCE_PASSWORD=yourpass
 set CORS_ALLOWED_ORIGINS=https://your-frontend.vercel.app
 
 docker run --rm -p %PORT%:%PORT% ^
   -e PORT=%PORT% ^
   -e APP_JWT_SECRET=%APP_JWT_SECRET% ^
-  -e DB_URL="%DB_URL%" ^
-  -e DB_USERNAME=%DB_USERNAME% ^
-  -e DB_PASSWORD=%DB_PASSWORD% ^
+  -e SPRING_DATASOURCE_URL="%SPRING_DATASOURCE_URL%" ^
+  -e SPRING_DATASOURCE_USERNAME=%SPRING_DATASOURCE_USERNAME% ^
+  -e SPRING_DATASOURCE_PASSWORD=%SPRING_DATASOURCE_PASSWORD% ^
   -e CORS_ALLOWED_ORIGINS=%CORS_ALLOWED_ORIGINS% ^
   battleship:local
 ```
@@ -111,7 +113,6 @@ docker run --rm -p %PORT%:%PORT% ^
 - Make sure the backend has `CORS_ALLOWED_ORIGINS` set to your Vercel domain.
 
 ## Notes
-- Flyway migrations run automatically on startup.
-- If startup fails due to DB connectivity/SSL, copy the exact JDBC URL from Aiven and ensure SSL params match their guidance.
+- Flyway migrations run automatically on startup. The DB user must be allowed to CREATE/ALTER tables.
+- If startup fails due to DB connectivity/SSL, copy the exact JDBC URL from your provider and ensure SSL params match their guidance.
 - Swagger UI is disabled in prod by default; enable via properties if needed.
-
