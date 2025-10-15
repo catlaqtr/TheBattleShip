@@ -1,0 +1,22 @@
+# Build outputs
+/target
+
+# VCS
+/.git
+/.gitignore
+/.github
+
+# IDE/editor
+/.idea
+*.iml
+.vscode/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Node leftovers (if any nested UIs)
+node_modules/
+/build
+/dist
+
